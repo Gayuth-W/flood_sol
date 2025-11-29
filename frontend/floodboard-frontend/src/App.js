@@ -1,80 +1,71 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import "./App.css";
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [name, setName] = useState("");
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const API_URL = "http://localhost:8080/floodboard";
+  const API_URL = "http://localhost:8080/messages";
 
+  // Fetch all messages
   const fetchMessages = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/messages`);
-      setMessages(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const postMessage = async (e) => {
-    e.preventDefault();
-    if (!text) return;
-
-    setLoading(true);
-    try {
-      const payload = { name: name || "Anonymous", text };
-      await axios.post(`${API_URL}/message`, payload);
-      setName("");
-      setText("");
-      fetchMessages();
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    setMessages(data);
   };
 
   useEffect(() => {
     fetchMessages();
   }, []);
 
+  // Post a new message
+  const addMessage = async () => {
+    if (!name || !text) return;
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, text }),
+    });
+    if (res.ok) {
+      setName("");
+      setText("");
+      fetchMessages();
+    }
+  };
+
+  // Delete a message
+  const deleteMessage = async (id) => {
+    const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+    if (res.ok) fetchMessages();
+  };
+
   return (
     <div className="App">
-      <h1>🌊 Floodboard</h1>
+      <h1>Flood Message Board</h1>
 
-      <form onSubmit={postMessage} className="message-form">
+      <div className="form">
         <input
-          type="text"
-          placeholder="Your name (optional)"
+          placeholder="Your Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <textarea
-          placeholder="Your message"
+          placeholder="Your Message"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        <button type="submit" disabled={loading}>
-          {loading ? "Posting..." : "Post Message"}
-        </button>
-      </form>
+        <button onClick={addMessage}>Send Message</button>
+      </div>
 
       <div className="messages">
-        {messages.length === 0 ? (
-          <p>No messages yet. Be the first!</p>
-        ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="message-card">
-              <p className="message-text">{msg.text}</p>
-              <p className="message-meta">
-                — {msg.name || "Anonymous"} |{" "}
-                {new Date(msg.timestamp).toLocaleString()}
-              </p>
-            </div>
-          ))
-        )}
+        {messages.map((msg) => (
+          <div key={msg.id} className="message-card">
+            <strong>{msg.name}</strong> ({msg.timestamp})
+            <p>{msg.text}</p>
+            <button onClick={() => deleteMessage(msg.id)}>Delete</button>
+          </div>
+        ))}
       </div>
     </div>
   );
